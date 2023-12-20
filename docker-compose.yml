@@ -1,0 +1,16 @@
+# Version du docker compose
+version: '3'
+
+# Défini le container que l'on veut run
+services:
+  # nom du serice
+  static-web-server:
+    # Emplacement du Dockerfile
+    build: ./StaticWebServer
+    # port auxquel on veux accéder notre site au travers de http://localhost
+    ports:
+      - "80:80"
+    # Met le contenu statique du site dans le conteneur
+    volumes:
+      - ./StaticWebServer/startbootstrap-agency-gh-pages:/usr/share/nginx/html
+
