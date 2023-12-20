@@ -65,3 +65,36 @@ docker run -p 80:80 static-web-server
 ```
 
 Une fois cela fais vous pouvez vous connectez à votre site en allant au lien http://localhost:80
+
+## Etape 2: Docker compose
+Pour cet 2ème partie il nous faut mettre en place un fichier `docker-compose.yml` à la racine de notre projet, Voici à quoi ressemble notre `docker-compose.yml` pour le moment :
+```bash
+# Version du docker compose
+version: '3'
+
+# Défini le container que l'on veut run
+services:
+  # nom du serice
+  static-web-server:
+    # Emplacement du Dockerfile
+    build: ./StaticWebServer
+    # port auxquel on veux accéder notre site au travers de http://localhost
+    ports:
+      - "80:80"
+    # Met le contenu statique du site dans le conteneur
+    volumes:
+      - ./StaticWebServer/startbootstrap-agency-gh-pages:/usr/share/nginx/html
+```
+Une fois se fichier configurer il nous suffit juste de tester à l'aide de la commande suivante (Attention à supprimé le container créer à l'étape 1 avant) :
+```bash
+docker compose up
+```
+Vous pouvez ensuite faire de même qu'a la fin de l'étape une est entrer dans la barre de recherche de votre navigateur http://localhost:80, votre site devrait apparaitre.
+si vous souhaitez stoppez le container utilisez la commande suivante:
+```bash
+docker compose down
+```
+Pour rebuild le toutes si vous avez modifié votre Dockerfile ou votre nginx.conf entrez la commande suivante:
+```bash
+docker compose build
+```
