@@ -98,3 +98,146 @@ Pour rebuild le toutes si vous avez modifié votre Dockerfile ou votre nginx.con
 ```bash
 docker compose build
 ```
+
+## Etape 3 Serveur API HTTP
+L'étape 3 consiste à mettre en place un serveur API en parrallèele du serveur statique en utilisant Javalin, pour see faire il nous faut un code en java implémentant le fonctionnaement de notre API, un DockerFile permettant d'exécuter le code avec le fichier docker-compose.yml et un fichier pom.xml permettant de compiler le code à l'aide de maven.
+Voici, le contenu du DockerFile:
+```bash
+FROM openjdk:21
+
+# Copie le dichier JAR de Javalin dans notre conteneur
+COPY target/myAPI-1.0.jar /usr/app/myAPI-1.0.jar
+
+# Règle le direectory de travail
+WORKDIR /usr/app
+
+# Commande pour exécuter le code Javalin
+CMD ["java", "-jar", "myAPI-1.0.jar"]
+```
+POM.xml :
+```bash
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>myAPI</groupId>
+    <artifactId>myAPI</artifactId>
+    <version>1.0</version>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>myAPI.myAPI</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.1.2</version>
+			</plugin>
+			
+			<plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.5.1</version>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>shade</goal>
+                    </goals>
+                    <configuration>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
+                        <transformers>
+                            <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <mainClass>myAPI.myAPI</mainClass>  <!-- Replace with your main class -->
+                            </transformer>
+                        </transformers>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+
+        </plugins>
+    </build>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.junit</groupId>
+				<artifactId>junit-bom</artifactId>
+				<version>5.10.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+    			<groupId>io.javalin</groupId>
+    			<artifactId>javalin</artifactId>
+    			<version>5.6.3</version>
+		</dependency>
+		<dependency>
+    			<groupId>org.slf4j</groupId>
+    			<artifactId>slf4j-simple</artifactId>
+    			<version>2.0.7</version>
+		</dependency>
+		<dependency>
+    			<groupId>com.fasterxml.jackson.core</groupId>
+    			<artifactId>jackson-databind</artifactId>
+    			<version>2.15.0</version>
+		</dependency>
+	</dependencies>
+
+
+</project>
+```
+pour que le toute fonctionne ensemble avec le serveur static et que l'on puisse tout simplemeent utiliser la commande `docker compose up` pour exécuter le programme , il faut rajouter les lignes suivantes au fichier docker-compose.yml (port modifiable selon vos besoin) :
+```bash
+  javalin-app:
+    build:
+      context: ./APIServer
+      dockerfile: Dockerfile
+    ports:
+      - "7000:7000"
+```
+Notre serveur API à une fonction très simple qui nous sert tout simplement à faire une liste de Todo en utilisant une ArrayList, pour voir que le toute fonctionne bien une liste de base à été défini `["Buy groceries","Read a book","Complete lab assignment"]`, la liste se retrouve au lien suivant : `http://localhost:7000/todos` .
+Pour tester le bon fonctionnement de l'API j'ai utilisé Insomnia, Pour ajouter (post) un nouveau todo il faut exécuter le lien suivant: `http://localhost:7000/todos/add/"Votre texte"`
+et pour supprimer (delete) un todo il faut utiliser le lien suivant : `http://localhost:7000/todos/delete/"index"`
+Voici un exemple sur insomnia: 
+Get de base:
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/4b8671bc-dde9-4058-8214-01783117a6f9)
+
+Post:
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/b122c539-3e33-41bb-8391-4f414e75f6d6)
+
+Delete:
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/d2892265-d13a-44ed-b2d8-14c3049a27ca)
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/e95edc73-19e5-4790-8c7b-c96cc644f78c)
+
+
+
+
+
