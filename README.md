@@ -293,3 +293,53 @@ Vous pouvez maintenant accéder au serveur static et dynamique simplement en ent
 Grâce à Traefik je géré l'endrois d'ou viennent les connexion, évité qu'une personne malfaisante connaisse directement mes services. Mais des point les plus cruciaux et que je peux monitoré tout se qu'il se passe dans mes services à l'aide de Traefik DashBoard au lien `http://traefik.localhost:8080/dashboard/#/` :
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/476a56ed-9919-4494-823b-7139abb374ef)
 
+## Etape 5 Scalability et load balancing
+Pour faire en sorte d'avoir plusieurs instance de chaque serveur il vous faut juste rajouter ces ligne à la fin chaque services (excetpé le servicee de reverse-proxy) :
+
+```bash
+    deploy:
+      replicas: 3 #nombre de réplique au choix
+```
+Docker à un outil très utile permettant de gérer plusieurs conteneur et cluster, cette outil s'appelle dockere swarm et nous permettra de gérer dynamiquement le nombre d'instance que l'on a unee fois les conteneur lancé. Pour see faire il vous suffira d'activer l'outil en utilisant la commande suivante:
+
+```bash
+docker swarm init
+```
+lorsque vous utilisé cet outil, pour exécuter les conteneur, utilisé la commande suivante: 
+
+```bash
+docker stack deploy -c docker-compose.yml [your-stack-name]
+```
+Vous pourrez voir dans l'image ci-dessous que tout mes instances ont été lancé :
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/7ecf6e6d-5a5a-4cc6-aaa6-b3635de31bdb)
+
+si vous souhaitez rajouter des instances ou en enlever sans redeployer le toute, utiliser la commande suivante (l'exemple ci-dessous et pour le serveur API Javalin):
+```bash
+docker service scale [your-stack-name]_javalin-app=5
+```
+Afin de voir que l'on a différentes instance j'ai modifié la méthode getTodosHandler de mon Serveur API afin qu'il me retourne le nom de l'instance qui est utilisé afin de voir que l'on utilisee bel et bien différente instance, voici à quoi ressemble la méthode maintenant : 
+```bash
+    private static Handler getTodosHandler() {
+        return ctx -> {        
+        try {
+            String hostname = InetAddress.getLocalHost().getHostName();
+            ctx.json(Map.of(
+                "hostname", hostname,
+                "todos", todos
+            ));
+        } catch (Exception e) {
+            ctx.status(500).result("Error retrieving hostname");
+        }};
+    }
+```
+Voici ci-dessous 2 instances de todos liste où l'un a un todo rajouter pour tester le bon fonctionnement: 
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/498566d2-d399-4acc-a35c-57ce3989e323)
+
+si maintenant je modifie le nombre d'instance de mon serveur API à 1 voilà se quee deviennent mes 2 fenêtres précédente : 
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/a3844504-fe51-40c1-9f9a-74c34679ab2b)
+
+si je remet maintenant le nombre d'instance à 3 :
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/f57509b4-3dad-44f3-99c7-eb0f4b08370b)
+
+
+
