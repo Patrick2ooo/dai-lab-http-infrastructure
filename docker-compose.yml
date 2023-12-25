@@ -5,12 +5,44 @@ version: '3'
 services:
   # nom du serice
   static-web-server:
-    # Emplacement du Dockerfile
-    build: ./StaticWebServer
-    # port auxquel on veux accéder notre site au travers de http://localhost
-    ports:
-      - "80:80"
-    # Met le contenu statique du site dans le conteneur
+    image: nginx:alpine
+    labels:
+      - "traefik.enable=true"
+      # Redirige la requête venant de localhost au serveur HTTP statique
+      - "traefik.http.routers.static-web-server.rule=Host(`localhost`)"
+      # Les connexions sont faites depuis un serveur web
+      - "traefik.http.routers.static-web-server.entrypoints=web"
     volumes:
       - ./StaticWebServer/startbootstrap-agency-gh-pages:/usr/share/nginx/html
+      
+  javalin-app:
+    build:
+      context: ./APIServer
+      dockerfile: Dockerfile
+    labels:
+        - "traefik.enable=true"
+        # Redirige la requête venant de localhost/todos au serveur API
+        - "traefik.http.routers.javalin-app.rule=Host(`localhost`) && PathPrefix(`/todos`)"
+        - "traefik.http.routers.javalin-app.entrypoints=web"
+        # Spécifie le port d'écoute 
+        - "traefik.http.services.javalin-app.loadbalancer.server.port=7000"
 
+  reverse-proxy:
+    image: traefik:v2.10
+    # Enables the web UI and tells Traefik to listen to docker
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true 
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+  
+   
