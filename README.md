@@ -237,7 +237,59 @@ Delete:
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/d2892265-d13a-44ed-b2d8-14c3049a27ca)
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/e95edc73-19e5-4790-8c7b-c96cc644f78c)
 
+## Etape 4: Reverse Proxy ave Traefik
+Pour faire un reverse proxy, il n'y a pas grand chose à modifié, on a seulement besoin de modifier le fichier `docker-compose.yml`, pour se faire on va en premier lieu rajouter le services de reverse proxy, voici le nouveau services ajouté :
+```bash
+    reverse-proxy:
+    image: traefik:v2.10
+    # Enables the web UI and tells Traefik to listen to docker
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true 
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+l'objectif de se reverse proxy est de rediriger toutes les connexions au bon serveur web, donc plus besoin de notifier sur quel port on se connecte lorsque l'on utilise localhost, Traefik effectue tout, tout seul. Il faut tout de même modifier le contenu des autres services pour qu'ils utilisent Traefik, voici donc les nouveau contenu des autres services :
 
+```bash
+  static-web-server:
+    image: nginx:alpine
+    labels:
+      - "traefik.enable=true"
+      # Redirige la requête venant de localhost au serveur HTTP statique
+      - "traefik.http.routers.static-web-server.rule=Host(`localhost`)"
+      # Les connexions sont faites depuis un serveur web
+      - "traefik.http.routers.static-web-server.entrypoints=web"
+    volumes:
+      - ./StaticWebServer/startbootstrap-agency-gh-pages:/usr/share/nginx/html
+      
+  javalin-app:
+    build:
+      context: ./APIServer
+      dockerfile: Dockerfile
+    labels:
+        - "traefik.enable=true"
+        # Redirige la requête venant de localhost/todos au serveur API
+        - "traefik.http.routers.javalin-app.rule=Host(`localhost`) && PathPrefix(`/todos`)"
+        - "traefik.http.routers.javalin-app.entrypoints=web"
+        # Spécifie le port d'écoute 
+        - "traefik.http.services.javalin-app.loadbalancer.server.port=7000"
+```
+Une fois cela fait il vous suffit tout simplement d'exécuter la commande `docker compose up` et le tour est jouer voilà à quoi devrait ressembler vos container sur docker :
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/db4ee119-0777-4b42-b7be-df3df6a3632a)
 
+Vous pouvez maintenant accéder au serveur static et dynamique simplement en entrant les adresses respective suivante: `http://localhost/` et `http://localhost/todos`
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/35a011d5-9728-4871-8b1a-9cec5e4c3495)
 
+Grâce à Traefik je géré l'endrois d'ou viennent les connexion, évité qu'une personne malfaisante connaisse directement mes services. Mais des point les plus cruciaux et que je peux monitoré tout se qu'il se passe dans mes services à l'aide de Traefik DashBoard au lien `http://traefik.localhost:8080/dashboard/#/` :
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/476a56ed-9919-4494-823b-7139abb374ef)
 
