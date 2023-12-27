@@ -430,4 +430,7 @@ http {
 ```
 Comme le DockerFile et le nginx-conf ont été modifier n'oubliez pas de rebuild le projet.
 
-Voici donc maintenant la démonstartion du serveur statique en round-robin:
+Voici donc maintenant la démonstration du serveur statique en round-robin:
+![dai2](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/302ff5fd-774c-46fb-889f-567d96f192e5)
+
+Nos 2 services sont donc fonctionnel.
