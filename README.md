@@ -341,5 +341,93 @@ si maintenant je modifie le nombre d'instance de mon serveur API à 1 voilà se 
 si je remet maintenant le nombre d'instance à 3 :
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/f57509b4-3dad-44f3-99c7-eb0f4b08370b)
 
+## Etape 6 Sticky-Session et Round-Robin
+Afin que le serveur dynamique puisse avoir une sticky session il nous suffit simplement de rajouter 2 lignes au service javalin-app, voici donc la nouvelle configuration du javalin-app:
+```bash
+javalin-app:
+    build:
+      context: ./APIServer
+      dockerfile: Dockerfile
+    image: my-javalin-app-image
+    labels:
+    	## Active la sticky-session
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie=true"
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie.name=my-sticky-cookie"
+        
+        - "traefik.enable=true"
+        # Redirige la requête venant de localhost/todos au serveur API
+        - "traefik.http.routers.javalin-app.rule=Host(`localhost`) && PathPrefix(`/todos`)"
+        - "traefik.http.routers.javalin-app.entrypoints=web"
+        # Spécifie le port d'écoute 
+        - "traefik.http.services.javalin-app.loadbalancer.server.port=7000"
+    deploy:
+      replicas: 3
+```
+On peut maintenant voir sur notre API web, l'instance reste toujours la même pour le même client tant qu'on ne supprime pas le cookie: 
+![DaI_edit_0](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/b457b0c3-39fa-4e97-88c3-11113a49a2bc)
 
+Afin de contrôler que le serveur statique est toujours en round-robin, j'ai souhaité faire comme pour le serveur dynamique et utilisé le hostname pour voir que ce ne sont pas tout lee temps les même instances pour un même clients, pour se faire j'ai du changé mon index.html en index.php, car l'html ne peux pas générer dynamiquement du contenu. Il est aussi important de modifier les contenu du DockerFile eet les contenu du nginx.conf aussi pour qu'ils sacheent que nous utilisons maintenant du php pour notre serveur statique voici donc le contenu des mes 2 fichier trouver à l'aide de plusieurs recherche sur internet:
+DockerFile:
+```bash
+FROM webdevops/php-nginx:alpine-php7
 
+# Install nginx, PHP and required extensions
+RUN apk add --no-cache nginx php7 php7-fpm php7-opcache && \
+    mkdir -p /run/nginx
+
+# Copy the static site content into the Nginx web directory
+COPY nginx.conf /etc/nginx/nginx.conf
+# Copy the PHP application (formerly static HTML) to the container
+COPY startbootstrap-agency-gh-pages /app
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx when the container launches
+CMD php-fpm7; nginx -g 'daemon off;'
+```
+nginx.conf:
+```bash
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log notice;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    include /etc/nginx/conf.d/*.conf;
+    
+    server {
+        location ~ \.php$ {
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+            include        fastcgi.conf;
+            fastcgi_param  SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_param  SCRIPT_NAME     $fastcgi_script_name;
+        }
+    }
+}
+```
+Comme le DockerFile et le nginx-conf ont été modifier n'oubliez pas de rebuild le projet.
+
+Voici donc maintenant la démonstartion du serveur statique en round-robin:
