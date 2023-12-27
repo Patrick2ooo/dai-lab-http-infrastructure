@@ -333,12 +333,15 @@ Afin de voir que l'on a différentes instance j'ai modifié la méthode getTodos
     }
 ```
 Voici ci-dessous 2 instances de todos liste où l'un a un todo rajouter pour tester le bon fonctionnement: 
+
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/498566d2-d399-4acc-a35c-57ce3989e323)
 
 si maintenant je modifie le nombre d'instance de mon serveur API à 1 voilà se quee deviennent mes 2 fenêtres précédente : 
+
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/a3844504-fe51-40c1-9f9a-74c34679ab2b)
 
 si je remet maintenant le nombre d'instance à 3 :
+
 ![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/f57509b4-3dad-44f3-99c7-eb0f4b08370b)
 
 ## Etape 6 Sticky-Session et Round-Robin
@@ -364,10 +367,12 @@ javalin-app:
       replicas: 3
 ```
 On peut maintenant voir sur notre API web, l'instance reste toujours la même pour le même client tant qu'on ne supprime pas le cookie: 
+
 ![DaI_edit_0](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/b457b0c3-39fa-4e97-88c3-11113a49a2bc)
 
 Afin de contrôler que le serveur statique est toujours en round-robin, j'ai souhaité faire comme pour le serveur dynamique et utilisé le hostname pour voir que ce ne sont pas tout lee temps les même instances pour un même clients, pour se faire j'ai du changé mon index.html en index.php, car l'html ne peux pas générer dynamiquement du contenu. Il est aussi important de modifier les contenu du DockerFile eet les contenu du nginx.conf aussi pour qu'ils sacheent que nous utilisons maintenant du php pour notre serveur statique voici donc le contenu des mes 2 fichier trouver à l'aide de plusieurs recherche sur internet:
 DockerFile:
+
 ```bash
 FROM webdevops/php-nginx:alpine-php7
 
@@ -387,6 +392,7 @@ EXPOSE 80
 CMD php-fpm7; nginx -g 'daemon off;'
 ```
 nginx.conf:
+
 ```bash
 user  nginx;
 worker_processes  auto;
@@ -431,6 +437,94 @@ http {
 Comme le DockerFile et le nginx-conf ont été modifier n'oubliez pas de rebuild le projet.
 
 Voici donc maintenant la démonstration du serveur statique en round-robin:
+
 ![dai2](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/302ff5fd-774c-46fb-889f-567d96f192e5)
 
 Nos 2 services sont donc fonctionnel.
+
+## Etape 7 HTTPS
+Pour configurer mes 2 serveurs pour qu'il fonctionne en https et en http il nous faut un certificat et modifier le `docker-compose.yml`. Afin de générer le certificat et sa clé utiliser la commande openssl décrit à ce [lien](https://stackoverflow.com/questions/10175812/how-to-create-a-self-signed-certificate-with-openssl#10176685), cela vous générera 2 fichier (cert.perm et key.perm) mettez ces 2 fichier dans un dossier appelé Certif (si un autre nom à été chois veuillez modifier le Certif dans volumes de reverse-proxy par votre nom de dossier dans le `docker-compose.yml`). Maintenant tout se qu'il nous reste est de rajouter quelque lignee dans notre `docker-compose.yml` afin que l'on puisse maintenant aussi utiliser nos serveur en https: 
+
+```bash
+version: '3'
+
+services:
+  static-web-server:
+    build: ./StaticWebServer
+    image: my-static-server-image
+    labels:
+      - "traefik.enable=true"
+      # Redirige la requête venant de localhost au serveur HTTPS statique
+      - "traefik.http.routers.static-web-server.entrypoints=websecure"
+      - "traefik.http.routers.static-web-server.tls.certresolver=teeresolver"
+      - "traefik.http.routers.static-web-server.rule=Host(`localhost`)"
+      
+      # Redirige la requête venant de localhost au serveur HTTP statique
+      - "traefik.http.routers.static-web-server-http.entrypoints=web"
+      - "traefik.http.routers.static-web-server-http.rule=Host(`localhost`)"
+    volumes:
+      - ./StaticWebServer/startbootstrap-agency-gh-pages:/usr/share/nginx/html
+    deploy:
+      replicas: 3
+
+      
+  javalin-app:
+    build:
+      context: ./APIServer
+      dockerfile: Dockerfile
+    image: my-javalin-app-image
+    labels:
+        ## Active la sticky-session
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie=true"
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie.name=my-sticky-cookie"
+        
+        - "traefik.enable=true"
+        # Redirige la requête venant de localhost au serveur HTTPS dynamique
+        - "traefik.http.routers.javalin-app.entrypoints=websecure"
+        - "traefik.http.routers.javalin-app.tls.certresolver=teeresolver"
+        # Redirige la requête venant de localhost/todos au serveur API
+        - "traefik.http.routers.javalin-app.rule=Host(`localhost`) && PathPrefix(`/todos`)"
+        
+        # Redirige la requête venant de localhost au serveur HTTP dynamique
+        - "traefik.http.routers.javalin-app-http.entrypoints=web"
+        - "traefik.http.routers.javalin-app-http.rule=Host(`localhost`) && PathPrefix(`/todos`)"
+        # Spécifie le port d'écoute 
+        - "traefik.http.services.javalin-app.loadbalancer.server.port=7000"
+    deploy:
+      replicas: 3
+
+
+  reverse-proxy:
+    image: traefik:v2.10
+    # Enables the web UI and tells Traefik to listen to docker
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true 
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.email=p.maillard1522@gmail.com
+      - --certificatesresolvers.myresolver.acme.storage=/certs/acme.json
+      
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The HTTPS port
+      - "443:443"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./Certif:/certs
+```
+
+Voici une démo pour le serveur statique :
+
+![dai3_edit_0](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/b41f5eb8-1d62-4219-9859-2e4ef212902a)
+
+Et voici la démo pour le serveur dynamique:
+
+![dai4_edit_0](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/246b6d3a-ca1e-42db-b92d-c7cd61a5e26b)
