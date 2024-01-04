@@ -1,31 +1,50 @@
-# Version du docker compose
 version: '3'
 
-# Défini le container que l'on veut run
 services:
-  # nom du serice
   static-web-server:
-    image: nginx:alpine
+    build: ./StaticWebServer
+    image: my-static-server-image
     labels:
       - "traefik.enable=true"
-      # Redirige la requête venant de localhost au serveur HTTP statique
+      # Redirige la requête venant de localhost au serveur HTTPS statique
+      - "traefik.http.routers.static-web-server.entrypoints=websecure"
+      - "traefik.http.routers.static-web-server.tls.certresolver=teeresolver"
       - "traefik.http.routers.static-web-server.rule=Host(`localhost`)"
-      # Les connexions sont faites depuis un serveur web
-      - "traefik.http.routers.static-web-server.entrypoints=web"
+      
+      # Redirige la requête venant de localhost au serveur HTTP statique
+      - "traefik.http.routers.static-web-server-http.entrypoints=web"
+      - "traefik.http.routers.static-web-server-http.rule=Host(`localhost`)"
     volumes:
       - ./StaticWebServer/startbootstrap-agency-gh-pages:/usr/share/nginx/html
+    deploy:
+      replicas: 3
+
       
   javalin-app:
     build:
       context: ./APIServer
       dockerfile: Dockerfile
+    image: my-javalin-app-image
     labels:
+        # Active la sticky-session
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie=true"
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie.name=my-sticky-cookie"
+        
         - "traefik.enable=true"
+        # Redirige la requête venant de localhost au serveur HTTPS dynamique
+        - "traefik.http.routers.javalin-app.entrypoints=websecure"
+        - "traefik.http.routers.javalin-app.tls.certresolver=teeresolver"
         # Redirige la requête venant de localhost/todos au serveur API
         - "traefik.http.routers.javalin-app.rule=Host(`localhost`) && PathPrefix(`/todos`)"
-        - "traefik.http.routers.javalin-app.entrypoints=web"
+        
+        # Redirige la requête venant de localhost au serveur HTTP dynamique
+        - "traefik.http.routers.javalin-app-http.entrypoints=web"
+        - "traefik.http.routers.javalin-app-http.rule=Host(`localhost`) && PathPrefix(`/todos`)"
         # Spécifie le port d'écoute 
         - "traefik.http.services.javalin-app.loadbalancer.server.port=7000"
+    deploy:
+      replicas: 3
+
 
   reverse-proxy:
     image: traefik:v2.10
@@ -36,13 +55,20 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.email=p.maillard1522@gmail.com
+      - --certificatesresolvers.myresolver.acme.storage=/certs/acme.json
+      
     ports:
       # The HTTP port
       - "80:80"
+      # The HTTPS port
+      - "443:443"
       # The Web UI (enabled by --api.insecure=true)
       - "8080:8080"
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
-  
-   
+      - ./Certif:/certs
+

@@ -2,6 +2,8 @@ package myAPI;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.net.InetAddress;
 
 import io.javalin.Javalin;
 
@@ -22,7 +24,16 @@ public class myAPI {
     }
 
     private static Handler getTodosHandler() {
-        return ctx -> {ctx.json(todos);};
+        return ctx -> {        
+        try {
+            String hostname = InetAddress.getLocalHost().getHostName();
+            ctx.json(Map.of(
+                "hostname", hostname,
+                "todos", todos
+            ));
+        } catch (Exception e) {
+            ctx.status(500).result("Error retrieving hostname");
+        }};
     }
 
     private static Handler addTodoHandler() {
