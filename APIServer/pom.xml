@@ -47,7 +47,7 @@
                         <createDependencyReducedPom>false</createDependencyReducedPom>
                         <transformers>
                             <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                <mainClass>myAPI.myAPI</mainClass>  <!-- Replace with your main class -->
+                                <mainClass>myAPI.myAPI</mainClass>  
                             </transformer>
                         </transformers>
                     </configuration>

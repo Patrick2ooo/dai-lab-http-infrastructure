@@ -28,8 +28,7 @@ services:
     labels:
         # Active la sticky-session
         - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie=true"
-        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie.name=my-sticky-cookie"
-        
+        - "traefik.http.services.javalin-app.loadbalancer.sticky.cookie.name=my-sticky-cookie"       
         - "traefik.enable=true"
         # Redirige la requête venant de localhost au serveur HTTPS dynamique
         - "traefik.http.routers.javalin-app.entrypoints=websecure"

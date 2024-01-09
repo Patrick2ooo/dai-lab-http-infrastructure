@@ -20,6 +20,7 @@ public class myAPI {
         Javalin app = Javalin.create().start(7000);
         app.get("/todos", getTodosHandler());
         app.post("/todos/add/{text}", addTodoHandler());
+        app.put("/todos/update/{index}/{text}", updateTodoHandler());
         app.delete("/todos/delete/{index}", deleteTodoHandler());
     }
 
@@ -41,6 +42,25 @@ public class myAPI {
             todos.add(ctx.pathParam("text"));
             ctx.status(201); // HTTP status code for "Created"
             ctx.json(todos);
+        };
+    }
+
+    private static Handler updateTodoHandler() {
+        return ctx -> {
+            try {
+                int index = Integer.parseInt(ctx.pathParam("index"));
+                String newText = ctx.pathParam("text");
+
+                if (index >= 0 && index < todos.size()) {
+                    todos.set(index, newText);
+                    ctx.status(200); // HTTP status code for "OK"
+                    ctx.json(todos);
+                } else {
+                    ctx.status(404); // Not Found
+                }
+            } catch (NumberFormatException e) {
+                ctx.status(400); // Bad Request
+            }
         };
     }
 
