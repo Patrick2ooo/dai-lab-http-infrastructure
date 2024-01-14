@@ -528,3 +528,6 @@ Voici une démo pour le serveur statique :
 Et voici la démo pour le serveur dynamique:
 
 ![dai4_edit_0](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/246b6d3a-ca1e-42db-b92d-c7cd61a5e26b)
+
+## Etape optionnel 1: Portainer
+Pour cet Etape j'ai trouvé Portainer qui fourni tout le nécessaire pour avoir un UI de monitoring pour gérer mes différents site web. Pour l'implémenter à mon programme, il suffit juste  d'ajouter les ligne suivante à mon docker
