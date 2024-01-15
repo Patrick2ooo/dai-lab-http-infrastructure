@@ -530,4 +530,69 @@ Et voici la démo pour le serveur dynamique:
 ![dai4_edit_0](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/246b6d3a-ca1e-42db-b92d-c7cd61a5e26b)
 
 ## Etape optionnel 1: Portainer
-Pour cet Etape j'ai trouvé Portainer qui fourni tout le nécessaire pour avoir un UI de monitoring pour gérer mes différents site web. Pour l'implémenter à mon programme, il suffit juste  d'ajouter les ligne suivante à mon docker
+Pour cet Etape j'ai trouvé Portainer qui fourni tout le nécessaire pour avoir un UI de monitoring pour gérer mes différents site web. Pour l'implémenter à mon programme, il suffit juste d'ajouter les lignes suivante au `docker-compose.yml`:
+
+```bash
+  portainer:
+    image: portainer/portainer-ce
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      # Define HTTP route for Portainer
+      - "traefik.http.routers.portainer.entrypoints=web"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
+      # Define HTTPS route for Portainer
+      - "traefik.http.routers.portainer-secure.entrypoints=websecure"
+      - "traefik.http.routers.portainer-secure.rule=Host(`portainer.localhost`)"
+      - "traefik.http.routers.portainer-secure.tls.certresolver=myresolver"
+      # Specify the internal port of Portainer
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+volumes:
+  portainer_data:
+```
+Une fois cela fait votre UI de monitoring est prêt il ne vous reste plus qu'à démarrer le docker avec `docker compose up` et à vous connecter à l'adress `portainer.localhost`.
+Lors dee votre première connexion il vous demandera de mettre un mot de passe pour l'administrateur, une fois cela fait connectez vous et essayé de jouer avec les différentes fonctionnalité de portainer: 
+
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/43d226d2-4465-4bf4-a11f-132f1d77a57b)
+
+lorsque vous êtes dans le menu home vous pourrez trouver un environnement docker comme sur l'image ci-dessus, lorsque vous cliquez dessus, vous vous retrouverez avec un interface asseez similaire à docker desktop, vous pouvez ajouter des services, fermez des container, etc...
+
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/432dbe6a-4ea2-4728-ae57-3db1ceb2c24d)
+
+## Etape optionnel 2: Integration de l'API au site web static
+Pour cet partie il a juste suffit de rajouter queelque ligne d'html et un script javascript dans l'`index.php`, voici les ligne rajouter:
+A ajouter là où vous souhaitez que votre API s'affiche dans votre site web static:
+
+```bash
+	<div id="api-data" style="padding: 20px; background-color: #f8f9fa;">
+    		<h2>API Data:</h2>
+    		<pre id="api-data-content">Loading data from API...</pre>
+	</div>
+```
+script à insérer tout en bas de l'index.php, la ou se trouve les autres script:
+
+```bash
+<script>
+            document.addEventListener('DOMContentLoaded', function() {
+                fetch('http://localhost/todos') 
+                    .then(response => response.json())
+                    .then(data => {
+                        const apiDataDiv = document.getElementById('api-data-content');
+                        apiDataDiv.textContent = JSON.stringify(data, null, 2);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data: ', error);
+                        const apiDataDiv = document.getElementById('api-data-content');
+                        apiDataDiv.textContent = 'Failed to load data.';
+                    });
+            });
+        </script>
+```
+Une fois cela fait connecter vous à `localhost` et chercher l'endroit où vous avez insérer votre API, voilà un exemple sur mon site web static: 
+
+![image](https://github.com/Patrick2ooo/dai-lab-http-infrastructure/assets/44113916/443b3afe-e9b9-411b-a7fc-3980658bf30e)
+
+on peux voir qu'il y a mon API obtenu à l'aide d'un GET.
