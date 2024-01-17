@@ -45,6 +45,11 @@
                 <a class="btn btn-primary btn-xl text-uppercase" href="#services">Tell Me More</a>
             </div>
         </header>
+        <!-- Div to display API data -->
+	<div id="api-data" style="padding: 20px; background-color: #f8f9fa;">
+    		<h2>API Data:</h2>
+    		<pre id="api-data-content">Loading data from API...</pre>
+	</div>
         <!-- Services-->
         <section class="page-section" id="services">
             <div class="container">
@@ -313,6 +318,7 @@
                     <h2 class="section-heading text-uppercase">Contact Us</h2>
                     <h3 class="section-subheading text-muted">Lorem ipsum dolor sit amet consectetur.</h3>
                 </div>
+                
                 <!-- * * * * * * * * * * * * * * *-->
                 <!-- * * SB Forms Contact Form * *-->
                 <!-- * * * * * * * * * * * * * * *-->
@@ -607,5 +613,20 @@
         <!-- * * Activate your form at https://startbootstrap.com/solution/contact-forms * *-->
         <!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *-->
         <script src="https://cdn.startbootstrap.com/sb-forms-latest.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                fetch('http://localhost/todos') 
+                    .then(response => response.json())
+                    .then(data => {
+                        const apiDataDiv = document.getElementById('api-data-content');
+                        apiDataDiv.textContent = JSON.stringify(data, null, 2);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data: ', error);
+                        const apiDataDiv = document.getElementById('api-data-content');
+                        apiDataDiv.textContent = 'Failed to load data.';
+                    });
+            });
+        </script>
     </body>
 </html>

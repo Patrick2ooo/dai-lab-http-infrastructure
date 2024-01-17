@@ -50,7 +50,6 @@ public class myAPI {
             try {
                 int index = Integer.parseInt(ctx.pathParam("index"));
                 String newText = ctx.pathParam("text");
-
                 if (index >= 0 && index < todos.size()) {
                     todos.set(index, newText);
                     ctx.status(200); // HTTP status code for "OK"

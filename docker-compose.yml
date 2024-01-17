@@ -70,4 +70,24 @@ services:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
       - ./Certif:/certs
+      
+  portainer:
+    image: portainer/portainer-ce
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      # Define HTTP route for Portainer
+      - "traefik.http.routers.portainer.entrypoints=web"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
+      # Define HTTPS route for Portainer
+      - "traefik.http.routers.portainer-secure.entrypoints=websecure"
+      - "traefik.http.routers.portainer-secure.rule=Host(`portainer.localhost`)"
+      - "traefik.http.routers.portainer-secure.tls.certresolver=myresolver"
+      # Specify the internal port of Portainer
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+volumes:
+  portainer_data:
 
